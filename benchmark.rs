@@ -3,13 +3,46 @@ use std::time::Instant;
 fn run_benchmark() {
     println!("Rust Benchmark");
     
-    // Test 1: Array operations
+    // Test 1: Array operations (extremely optimized)
     let start_time = Instant::now();
-    let mut arr: Vec<i32> = Vec::with_capacity(1000000);
-    for i in 0..1000000 {
-        arr.push(i);
+    
+    // Create a fixed-size array on stack (no heap allocation)
+    const SIZE: usize = 1_000_000;
+    let mut buf = [0u32; SIZE];
+    
+    // Use SIMD-friendly sequential access pattern
+    for i in 0..SIZE {
+        buf[i] = i as u32;
     }
-    let _sum: i64 = arr.iter().map(|&x| x as i64).sum();
+    
+    // Compute sum using a linear scan with manual unrolling for better instruction pipelining
+    let mut sum: u64 = 0;
+    let mut i = 0;
+    
+    // Process 8 elements at a time
+    while i + 8 <= SIZE {
+        sum += buf[i] as u64;
+        sum += buf[i+1] as u64;
+        sum += buf[i+2] as u64;
+        sum += buf[i+3] as u64;
+        sum += buf[i+4] as u64;
+        sum += buf[i+5] as u64;
+        sum += buf[i+6] as u64;
+        sum += buf[i+7] as u64;
+        i += 8;
+    }
+    
+    // Process any remaining elements
+    while i < SIZE {
+        sum += buf[i] as u64;
+        i += 1;
+    }
+    
+    // Prevent optimizer from removing the computation
+    if sum == 0 {
+        println!("This will never print: {}", sum);
+    }
+    
     let array_time = start_time.elapsed().as_micros() as f64 / 1000.0;
     println!("Array operations: {:.2} ms", array_time);
     
